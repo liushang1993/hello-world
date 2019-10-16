@@ -1,0 +1,149 @@
+select * from (
+	select CPDM as cpdm, JYSDM as jysdm, ZQDM as zqdm, sum(SL) as sl, sum(CB) as cb
+		from(
+				select * from openquery(ORACLE_LHFK, '
+				select a.vc_cpdm as cpdm, 
+						case when l_sclb = ''1'' then ''1''
+							when l_sclb = ''2'' then ''0''
+							when l_sclb = ''11'' then ''S''
+							when l_sclb = ''12'' then ''D''
+							when l_sclb = ''13'' then ''Z''
+							when l_sclb = ''43'' then ''F''
+							when l_sclb = ''44'' then ''J''
+							when l_sclb = ''30'' then ''K''
+							else '''' end as jysdm,
+						substr(vc_kmdm,11) as zqdm, 
+						l_sl as sl, en_cb as cb
+						from hsfa.vjk_wbfk_gzb a
+						where vc_cpdm in (
+						''YC0002'',''YC0003'',''YC0004'',''YC0006'',''YC0007'',''YC0008'',''YC000H'',''YC000I'',''YC0018'',''YC0019'',''YC001C'',''YC001E'',''YC001I'',''YC001M'',''YC001N'',''YC001U'',''YC001W'',''YC0020'',''YC002B'',''YC002E'',''YC002H'',''YC002L'',''YC0030'',''YC0032'',''YC0033'',''YC003K'',''YC003Q'',''YC003W'',''YC0040'',''YC0041'',''YC0045'',''YC004E'',''YC004K'',''YC004M'',''YC004N'',''YC004O'',''YC004W'',''YC004Y'',''YC005D'',''YC005N'',''YC005O'',''YC005R'',''YC006E'',''YC008K'',''YC0099'',''YC009C'',''YC0345'',''YC034W'',''YC035G'',''YC035H'',''YC037G'',''YC037K'',''YC037V'',''YC0381'',''YC038A'',''YC038Y'',''YC03AL'',''YC03AP'',''YC03BB'',''YC03BC'',''YC03BN'',''YC03BY'',''YC03C5'',''YC03C6'',''YC03CR'',''YC03E3'',''YC03EL'',''YC03ET'',''YC03F2'',''YC03F5'',''YC03FH'',''YC03FN'',''YC03GI'',''YC03GK'',''YC03GL'',''YC03GR'',''YC03H7'',''YC03H8'',''YC03H9'',''YC03JE'',''YC03K3'',''YC03KY'',''YC03KZ'',''YC03L0'',''YC03LK'',''YC03M9'',''YC03MF'',''YC03MN'',''YC03NR'',''YC03NS'',''YC03P4'',''YC03PB'',''YC03PD'',''YC03PE'',''YC03PF'',''YC03PI'',''YC03PS'',''YC03PU'',''YC03QG'',''YC03QK'',''YC03QU'',''YC03U6'',''YC03U7'',''YC03X9'',''YC03Z2'',''YC03ZN'',''YC0409'',''YC041W'',''YC043M'',''YC045J'',''YC0486'',''YC048R'',''YC04AI'',''YC04FI'',''YC04FJ'',''YC04GI''
+						)
+							and d_ywrq = date''2017-09-15'' 
+							and vc_kmdm like ''110101__01_%''
+							/*and l_sclb in (''1'',''2'',''11'',''12'',''13'',''43'',''44'')*/
+							order by a.vc_cpdm, a.vc_kmdm ')
+				)x
+				group by CPDM, JYSDM, ZQDM
+				)a
+				join (select cpdm, jysdm, zqdm, sum(cjsl) as cjsl from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170915' and ywlb = 'PZTZ' group by cpdm, jysdm, zqdm)b on b.cpdm = a.cpdm and b.jysdm = a.jysdm and b.zqdm = a.zqdm
+				where b.cjsl <> a.sl
+
+--//根据股值数据调整成本
+--//15
+/*
+
+begin tran
+select * from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170915' and ywlb = 'PZTZ'
+update a set a.zjfss = b.cb,
+			 a.cjjg = round(b.cb/a.cjsl, 4),
+			 a.cjje = b.cb
+		 from g10lssj.dbo.zjzqlsb_cp_ls a
+		     join (select CPDM as cpdm, JYSDM as jysdm, ZQDM as zqdm, sum(SL) as sl, sum(CB) as cb
+		from(
+				select * from openquery(ORACLE_LHFK, '
+				select a.vc_cpdm as cpdm, 
+						case when l_sclb = ''1'' then ''1''
+							when l_sclb = ''2'' then ''0''
+							when l_sclb = ''11'' then ''S''
+							when l_sclb = ''12'' then ''D''
+							when l_sclb = ''13'' then ''Z''
+							when l_sclb = ''43'' then ''F''
+							when l_sclb = ''44'' then ''J''
+							when l_sclb = ''30'' then ''K''
+							else '''' end as jysdm,
+						substr(vc_kmdm,11) as zqdm, 
+						l_sl as sl, en_cb as cb
+						from hsfa.vjk_wbfk_gzb a
+						where vc_cpdm in (
+						''YC0002'',''YC0003'',''YC0004'',''YC0006'',''YC0007'',''YC0008'',''YC000H'',''YC000I'',''YC0018'',''YC0019'',''YC001C'',''YC001E'',''YC001I'',''YC001M'',''YC001N'',''YC001U'',''YC001W'',''YC0020'',''YC002B'',''YC002E'',''YC002H'',''YC002L'',''YC0030'',''YC0032'',''YC0033'',''YC003K'',''YC003Q'',''YC003W'',''YC0040'',''YC0041'',''YC0045'',''YC004E'',''YC004K'',''YC004M'',''YC004N'',''YC004O'',''YC004W'',''YC004Y'',''YC005D'',''YC005N'',''YC005O'',''YC005R'',''YC006E'',''YC008K'',''YC0099'',''YC009C'',''YC0345'',''YC034W'',''YC035G'',''YC035H'',''YC037G'',''YC037K'',''YC037V'',''YC0381'',''YC038A'',''YC038Y'',''YC03AL'',''YC03AP'',''YC03BB'',''YC03BC'',''YC03BN'',''YC03BY'',''YC03C5'',''YC03C6'',''YC03CR'',''YC03E3'',''YC03EL'',''YC03ET'',''YC03F2'',''YC03F5'',''YC03FH'',''YC03FN'',''YC03GI'',''YC03GK'',''YC03GL'',''YC03GR'',''YC03H7'',''YC03H8'',''YC03H9'',''YC03JE'',''YC03K3'',''YC03KY'',''YC03KZ'',''YC03L0'',''YC03LK'',''YC03M9'',''YC03MF'',''YC03MN'',''YC03NR'',''YC03NS'',''YC03P4'',''YC03PB'',''YC03PD'',''YC03PE'',''YC03PF'',''YC03PI'',''YC03PS'',''YC03PU'',''YC03QG'',''YC03QK'',''YC03QU'',''YC03U6'',''YC03U7'',''YC03X9'',''YC03Z2'',''YC03ZN'',''YC0409'',''YC041W'',''YC043M'',''YC045J'',''YC0486'',''YC048R'',''YC04AI'',''YC04FI'',''YC04FJ'',''YC04GI''
+						)
+							and d_ywrq = date''2017-09-15'' 
+							and vc_kmdm like ''11010______%''
+							/*and l_sclb in (''1'',''2'',''11'',''12'',''13'',''43'',''44'')*/
+							order by a.vc_cpdm, a.vc_kmdm ')
+				)x
+				group by CPDM, JYSDM, ZQDM)b on b.cpdm = a.cpdm and b.jysdm = a.jysdm and b.zqdm = a.zqdm
+			where jsrq = '20170915' and ywlb = 'PZTZ'
+select * from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170915' and ywlb = 'PZTZ'
+rollback
+*/
+
+--//19
+/*
+
+begin tran
+select * from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170919' and ywlb = 'PZTZ'
+update a set a.zjfss = b.cb,
+			 a.cjjg = round(b.cb/a.cjsl, 4),
+			 a.cjje = b.cb
+		 from g10lssj.dbo.zjzqlsb_cp_ls a
+		     join (select CPDM as cpdm, JYSDM as jysdm, ZQDM as zqdm, sum(SL) as sl, sum(CB) as cb
+		from(
+				select * from openquery(ORACLE_LHFK, '
+				select a.vc_cpdm as cpdm, 
+						case when l_sclb = ''1'' then ''1''
+							when l_sclb = ''2'' then ''0''
+							when l_sclb = ''11'' then ''S''
+							when l_sclb = ''12'' then ''D''
+							when l_sclb = ''13'' then ''Z''
+							when l_sclb = ''43'' then ''F''
+							when l_sclb = ''44'' then ''J''
+							when l_sclb = ''30'' then ''K''
+							else '''' end as jysdm,
+						substr(vc_kmdm,11) as zqdm, 
+						l_sl as sl, en_cb as cb
+						from hsfa.vjk_wbfk_gzb a
+						where vc_cpdm in (
+						''YC03E3'',
+						''YC004O'',
+						''YC0019''
+						)
+							and d_ywrq = date''2017-09-18'' 
+							and vc_kmdm like ''11010______%''
+							/*and l_sclb in (''1'',''2'',''11'',''12'',''13'',''43'',''44'')*/
+							order by a.vc_cpdm, a.vc_kmdm ')
+				)x
+				group by CPDM, JYSDM, ZQDM)b on b.cpdm = a.cpdm and b.jysdm = a.jysdm and b.zqdm = a.zqdm
+			where jsrq = '20170919' and ywlb = 'PZTZ'
+select * from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170919' and ywlb = 'PZTZ'
+rollback
+
+*/
+
+--//22
+/*
+begin tran
+select * from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170922' and ywlb = 'PZTZ'
+update a set a.zjfss = b.cb,
+			 a.cjjg = round(b.cb/a.cjsl, 4),
+			 a.cjje = b.cb
+		 from g10lssj.dbo.zjzqlsb_cp_ls a
+		     join (select CPDM as cpdm, JYSDM as jysdm, ZQDM as zqdm, sum(SL) as sl, sum(CB) as cb
+		from(
+				select * from openquery(ORACLE_LHFK, '
+				select a.vc_cpdm as cpdm, 
+						case when l_sclb = ''1'' then ''1''
+							when l_sclb = ''2'' then ''0''
+							when l_sclb = ''11'' then ''S''
+							when l_sclb = ''12'' then ''D''
+							when l_sclb = ''13'' then ''Z''
+							when l_sclb = ''43'' then ''F''
+							when l_sclb = ''44'' then ''J''
+							when l_sclb = ''30'' then ''K''
+							else '''' end as jysdm,
+						substr(vc_kmdm,11) as zqdm, 
+						l_sl as sl, en_cb as cb
+						from hsfa.vjk_wbfk_gzb a
+						where vc_cpdm in (
+						''YC03EV''
+						)
+							and d_ywrq = date''2017-09-21'' 
+							and vc_kmdm like ''11010______%''
+							/*and l_sclb in (''1'',''2'',''11'',''12'',''13'',''43'',''44'')*/
+							order by a.vc_cpdm, a.vc_kmdm ')
+				)x
+				group by CPDM, JYSDM, ZQDM)b on b.cpdm = a.cpdm and b.jysdm = a.jysdm and b.zqdm = a.zqdm
+			where jsrq = '20170922' and ywlb = 'PZTZ'
+select * from g10lssj.dbo.zjzqlsb_cp_ls where jsrq = '20170922' and ywlb = 'PZTZ'
+rollback
+*/
